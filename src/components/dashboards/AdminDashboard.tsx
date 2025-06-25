@@ -1,17 +1,158 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Settings, Shield, Activity, Database } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  role_id: string;
+  status: string;
+  created_at: string;
+}
+
+interface SystemHealth {
+  uptime_percent: number;
+}
+
+interface SecurityAlert {
+  id: string;
+  message: string;
+  status: string;
+  created_at: string;
+}
+
+interface DatabaseUsage {
+  storage_used_gb: number;
+}
+
+interface BackupStatus {
+  status: string;
+  last_backup: string;
+}
+
+interface SystemAnalytics {
+  daily_active_users: number;
+  applications_processed: number;
+  average_response_time: number;
+  storage_usage_percent: number;
+}
 
 export const AdminDashboard = () => {
-  const systemUsers = [
-    { id: 1, name: 'John Student', email: 'student@university.edu', role: 'student', status: 'active' },
-    { id: 2, name: 'Dr. Sarah Professor', email: 'faculty@university.edu', role: 'faculty', status: 'active' },
-    { id: 3, name: 'Michael Finance', email: 'finance@university.edu', role: 'finance', status: 'active' }
-  ];
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
+  const [databaseUsage, setDatabaseUsage] = useState<DatabaseUsage | null>(null);
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [analytics, setAnalytics] = useState<SystemAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .limit(10);
+
+      if (usersError) throw usersError;
+      setUsers(usersData || []);
+
+      // Fetch system health
+      const { data: healthData, error: healthError } = await supabase
+        .from('system_health')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!healthError && healthData) {
+        setSystemHealth(healthData);
+      }
+
+      // Fetch security alerts
+      const { data: alertsData, error: alertsError } = await supabase
+        .from('security_alerts')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (!alertsError) {
+        setSecurityAlerts(alertsData || []);
+      }
+
+      // Fetch database usage
+      const { data: dbUsageData, error: dbUsageError } = await supabase
+        .from('database_usage')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!dbUsageError && dbUsageData) {
+        setDatabaseUsage(dbUsageData);
+      }
+
+      // Fetch backup status
+      const { data: backupData, error: backupError } = await supabase
+        .from('backup_status')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!backupError && backupData) {
+        setBackupStatus(backupData);
+      }
+
+      // Fetch analytics
+      const { data: analyticsData, error: analyticsError } = await supabase
+        .from('system_analytics')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!analyticsError && analyticsData) {
+        setAnalytics(analyticsData);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    return status === 'active' ? 'default' : 'secondary';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading dashboard data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -27,8 +168,8 @@ export const AdminDashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,247</div>
-            <p className="text-xs text-muted-foreground">Active accounts</p>
+            <div className="text-2xl font-bold">{users.length}</div>
+            <p className="text-xs text-muted-foreground">Registered accounts</p>
           </CardContent>
         </Card>
         
@@ -38,7 +179,9 @@ export const AdminDashboard = () => {
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">99.9%</div>
+            <div className="text-2xl font-bold">
+              {systemHealth?.uptime_percent ? `${Number(systemHealth.uptime_percent).toFixed(1)}%` : 'N/A'}
+            </div>
             <p className="text-xs text-muted-foreground">Uptime</p>
           </CardContent>
         </Card>
@@ -49,7 +192,7 @@ export const AdminDashboard = () => {
             <Shield className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{securityAlerts.length}</div>
             <p className="text-xs text-muted-foreground">Require attention</p>
           </CardContent>
         </Card>
@@ -60,7 +203,9 @@ export const AdminDashboard = () => {
             <Database className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2.4GB</div>
+            <div className="text-2xl font-bold">
+              {databaseUsage?.storage_used_gb ? `${Number(databaseUsage.storage_used_gb).toFixed(1)}GB` : 'N/A'}
+            </div>
             <p className="text-xs text-muted-foreground">Storage used</p>
           </CardContent>
         </Card>
@@ -71,8 +216,13 @@ export const AdminDashboard = () => {
             <Settings className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">✓</div>
-            <p className="text-xs text-muted-foreground">Last: 2 hours ago</p>
+            <div className="text-2xl font-bold">{backupStatus?.status === 'completed' ? '✓' : '⚠'}</div>
+            <p className="text-xs text-muted-foreground">
+              {backupStatus?.last_backup ? 
+                `Last: ${new Date(backupStatus.last_backup).toLocaleDateString()}` : 
+                'No backup data'
+              }
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +235,7 @@ export const AdminDashboard = () => {
         <CardContent>
           <div className="flex justify-between items-center mb-4">
             <div className="flex space-x-2">
-              <Button size="sm">Add User</Button>
+              <Button size="sm" onClick={fetchDashboardData}>Refresh Data</Button>
               <Button size="sm" variant="outline">Export Users</Button>
             </div>
           </div>
@@ -94,23 +244,27 @@ export const AdminDashboard = () => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Role ID</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {systemUsers.map((user) => (
+              {users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="font-medium">{user.name || 'N/A'}</TableCell>
+                  <TableCell>{user.email || 'N/A'}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize">{user.role}</Badge>
+                    <Badge variant="outline">{user.role_id}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                      {user.status}
+                    <Badge variant={getStatusBadgeVariant(user.status)} className="capitalize">
+                      {user.status || 'unknown'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
@@ -120,6 +274,13 @@ export const AdminDashboard = () => {
                   </TableCell>
                 </TableRow>
               ))}
+              {users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-gray-500">
+                    No users found
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -134,19 +295,23 @@ export const AdminDashboard = () => {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm">Daily Active Users</span>
-              <span className="font-bold">847</span>
+              <span className="font-bold">{analytics?.daily_active_users || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm">Applications Processed Today</span>
-              <span className="font-bold">23</span>
+              <span className="font-bold">{analytics?.applications_processed || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm">Average Response Time</span>
-              <span className="font-bold">1.2s</span>
+              <span className="font-bold">
+                {analytics?.average_response_time ? `${Number(analytics.average_response_time).toFixed(1)}s` : 'N/A'}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm">Storage Usage</span>
-              <span className="font-bold">68%</span>
+              <span className="font-bold">
+                {analytics?.storage_usage_percent ? `${Number(analytics.storage_usage_percent).toFixed(0)}%` : 'N/A'}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -178,6 +343,30 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {securityAlerts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Security Alerts</CardTitle>
+            <CardDescription>Security issues requiring attention</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {securityAlerts.map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between p-3 border rounded-lg bg-yellow-50">
+                  <div>
+                    <p className="text-sm font-medium">{alert.message}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(alert.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{alert.status}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
