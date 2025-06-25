@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,11 @@ interface AddUserDialogProps {
   onUserAdded: () => void;
 }
 
+interface Role {
+  id: string;
+  name: string;
+}
+
 export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -20,7 +25,52 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
   const [roleId, setRoleId] = useState('');
   const [status, setStatus] = useState('active');
   const [loading, setLoading] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, name');
+
+      if (error) throw error;
+      setRoles(data || []);
+
+      // If no roles exist, create default ones
+      if (!data || data.length === 0) {
+        await createDefaultRoles();
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  };
+
+  const createDefaultRoles = async () => {
+    try {
+      const defaultRoles = [
+        { name: 'admin' },
+        { name: 'faculty' },
+        { name: 'student' },
+        { name: 'finance' },
+        { name: 'administration' }
+      ];
+
+      const { data, error } = await supabase
+        .from('roles')
+        .insert(defaultRoles)
+        .select();
+
+      if (error) throw error;
+      setRoles(data || []);
+    } catch (error) {
+      console.error('Error creating default roles:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,11 +172,11 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="faculty">Faculty</SelectItem>
-                <SelectItem value="student">Student</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
-                <SelectItem value="administration">Administration</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

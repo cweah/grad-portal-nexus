@@ -15,6 +15,9 @@ interface SystemUser {
   role_id: string;
   status: string;
   created_at: string;
+  roles?: {
+    name: string;
+  };
 }
 
 interface SystemHealth {
@@ -62,10 +65,13 @@ export const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch users
+      // Fetch users with role names
       const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          roles!inner(name)
+        `)
         .limit(10);
 
       if (usersError) throw usersError;
@@ -245,7 +251,7 @@ export const AdminDashboard = () => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Role ID</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
@@ -257,7 +263,7 @@ export const AdminDashboard = () => {
                   <TableCell className="font-medium">{user.name || 'N/A'}</TableCell>
                   <TableCell>{user.email || 'N/A'}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{user.role_id}</Badge>
+                    <Badge variant="outline">{user.roles?.name || 'Unknown'}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(user.status)} className="capitalize">
