@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Users, Settings, Shield, Activity, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { AddUserDialog } from '@/components/AddUserDialog';
 
 interface SystemUser {
   id: string;
@@ -237,6 +237,7 @@ export const AdminDashboard = () => {
             <div className="flex space-x-2">
               <Button size="sm" onClick={fetchDashboardData}>Refresh Data</Button>
               <Button size="sm" variant="outline">Export Users</Button>
+              <AddUserDialog onUserAdded={fetchDashboardData} />
             </div>
           </div>
           <Table>
