@@ -34,19 +34,31 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
 
   const fetchRoles = async () => {
     try {
+      console.log('Fetching roles from Supabase...');
       const { data, error } = await supabase
         .from('roles')
         .select('id, name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching roles:', error);
+        throw error;
+      }
+      
+      console.log('Fetched roles:', data);
       setRoles(data || []);
 
       // If no roles exist, create default ones
       if (!data || data.length === 0) {
+        console.log('No roles found, creating default roles...');
         await createDefaultRoles();
       }
     } catch (error) {
-      console.error('Error fetching roles:', error);
+      console.error('Error in fetchRoles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch roles",
+        variant: "destructive",
+      });
     }
   };
 
@@ -60,20 +72,29 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
         { name: 'administration' }
       ];
 
+      console.log('Creating default roles:', defaultRoles);
       const { data, error } = await supabase
         .from('roles')
         .insert(defaultRoles)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating default roles:', error);
+        throw error;
+      }
+      
+      console.log('Created default roles:', data);
       setRoles(data || []);
     } catch (error) {
-      console.error('Error creating default roles:', error);
+      console.error('Error in createDefaultRoles:', error);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('Form submission started');
+    console.log('Form data:', { name, email, roleId, status });
     
     if (!name || !email || !roleId) {
       toast({
@@ -86,8 +107,16 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
 
     try {
       setLoading(true);
+      
+      console.log('Inserting user with data:', {
+        name,
+        email,
+        role_id: roleId,
+        status,
+        created_at: new Date().toISOString(),
+      });
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .insert([
           {
@@ -97,9 +126,15 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
             status,
             created_at: new Date().toISOString(),
           }
-        ]);
+        ])
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+      }
+
+      console.log('User inserted successfully:', data);
 
       toast({
         title: "Success",
@@ -120,7 +155,7 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
       console.error('Error adding user:', error);
       toast({
         title: "Error",
-        description: "Failed to add user",
+        description: `Failed to add user: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {
@@ -166,7 +201,7 @@ export const AddUserDialog = ({ onUserAdded }: AddUserDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="role">Role *</Label>
+            <Label htmlFor="role">Role * ({roles.length} roles available)</Label>
             <Select value={roleId} onValueChange={setRoleId} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
