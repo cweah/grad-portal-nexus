@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,19 @@ import { FileText, Upload, DollarSign, Calendar, CheckCircle } from 'lucide-reac
 export const StudentDashboard = () => {
   const applicationStatus = 'under_review';
   const completionPercentage = 75;
+  
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'default';
+      case 'completed':
+        return 'default';
+      case 'rejected':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -24,7 +36,7 @@ export const StudentDashboard = () => {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Badge variant={applicationStatus === 'approved' ? 'default' : 'secondary'} className="capitalize">
+            <Badge variant={getStatusVariant(applicationStatus)} className="capitalize">
               {applicationStatus.replace('_', ' ')}
             </Badge>
           </CardContent>
